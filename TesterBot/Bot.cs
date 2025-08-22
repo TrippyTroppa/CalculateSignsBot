@@ -13,21 +13,20 @@ using Telegram.Bot.Types.Enums;
 
 namespace TesterBot
 {
-    internal class Bot: BackgroundService
+    internal class Bot : BackgroundService
     {
         private ITelegramBotClient _botClient;
 
-        public Bot (ITelegramBotClient botClient)
+        public Bot(ITelegramBotClient botClient)
         {
             _botClient = botClient;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _botClient.StartReceiving(HandleUpdate,
-                HandleError,
+            _botClient.StartReceiving(HandleUpdate, HandleError,
 
-                new ReceiverOptions() { AllowedUpdates = { } }, 
+                new ReceiverOptions() { AllowedUpdates = { } },
                 cancellationToken: stoppingToken);
 
             Console.WriteLine("Бот запущен");
@@ -36,11 +35,32 @@ namespace TesterBot
         async Task HandleUpdate(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
             if (update.Type == UpdateType.Message)
-                
-             await _botClient.SendMessage(update.Message.Chat.Id, $"Длина сообщения: {update.Message.Text.Length} знаков",
-                 cancellationToken: cancellationToken);
-        }
+            {
 
+                switch (update.Message!.Type)
+                {
+                    case MessageType.Text:
+
+                        await _botClient.SendMessage(update.Message.Chat.Id, $"Длина сообщения: {update.Message.Text.Length} знаков",
+                            cancellationToken: cancellationToken);
+                        return;
+
+                    default:
+
+                        await _botClient.SendMessage(update.Message.From.Id, $"Данный тип сообщений не поддерживается. Пожалуйста отправьте текст.", cancellationToken: cancellationToken);
+                        return;
+
+                }
+            
+            }
+
+            if (update.Type == UpdateType.CallbackQuery)
+            {
+                await _botClient.SendMessage(update.Message.From.Id, $"Данный тип сообщений не поддерживается. Пожалуйста отправьте текст.", cancellationToken: cancellationToken);
+                return;
+            }
+
+        }
         Task HandleError(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
         {
             var errorMessage = exception switch
@@ -50,15 +70,14 @@ namespace TesterBot
                 _ => exception.ToString()
             };
 
-            
+
             Console.WriteLine(errorMessage);
 
-            
+
             Console.WriteLine("Ожидаем 10 секунд перед повторным подключением.");
             Thread.Sleep(10000);
 
             return Task.CompletedTask;
         }
-
     }
 }
